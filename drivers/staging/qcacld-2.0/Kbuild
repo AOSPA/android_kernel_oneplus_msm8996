@@ -1436,9 +1436,10 @@ KBUILD_CPPFLAGS += $(CDEFINES)
 # is disabling the maybe-uninitialized warning.  Re-enable it for the
 # WLAN driver.  Note that we must use EXTRA_CFLAGS here so that it
 # will override the kernel settings.
-ifeq ($(call cc-option-yn, -Wmaybe-uninitialized),y)
-EXTRA_CFLAGS += -Wmaybe-uninitialized
-endif
+# Also ensure the driver is always built with Os.
+
+EXTRA_CFLAGS += -Os -Wmaybe-uninitialized
+
 
 # Module information used by KBuild framework
 obj-$(CONFIG_QCA_CLD_WLAN) += $(MODNAME).o
