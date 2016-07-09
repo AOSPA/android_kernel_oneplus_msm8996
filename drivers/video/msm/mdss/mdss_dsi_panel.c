@@ -220,6 +220,34 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
+int mdss_dsi_panel_set_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level)
+{
+	struct dsi_panel_cmds *srgb_on_cmds,*srgb_off_cmds;
+
+	srgb_on_cmds = &ctrl->srgb_on_cmds;
+	srgb_off_cmds = &ctrl->srgb_off_cmds;
+
+	if(!srgb_on_cmds->cmd_cnt){
+		printk("this panel don't support srgb mode\n");
+		return -1;
+	}
+
+	if (level){
+			mdss_dsi_panel_cmds_send(ctrl, srgb_on_cmds, CMD_REQ_COMMIT);
+		pr_err("sRGB Mode On.\n");
+	}
+	else{
+			mdss_dsi_panel_cmds_send(ctrl, srgb_off_cmds, CMD_REQ_COMMIT);
+		pr_err("sRGB Mode off.\n");
+	}
+
+	return 0;
+}
+int mdss_dsi_panel_get_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl)
+{
+	return ctrl->SRGB_mode;
+}
+
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
@@ -268,6 +296,65 @@ rst_gpio_err:
 		gpio_free(ctrl_pdata->disp_en_gpio);
 disp_en_gpio_err:
 	return rc;
+}
+
+static int lcd_power_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+
+	int rc = 0;
+
+	rc = gpio_request(ctrl_pdata->lcd_power_1v8_en, "lcd_1v8_en");
+	if (rc) {
+		pr_err("request lcd 1v8 en gpio failed, rc=%d\n",
+				rc);
+		goto lcd_1v8_gpio_err;
+	 }
+	return rc;
+
+lcd_1v8_gpio_err:
+	if (gpio_is_valid(ctrl_pdata->lcd_power_1v8_en))
+			gpio_free(ctrl_pdata->lcd_power_1v8_en);
+	return rc;
+}
+
+int vendor_lcd_power_on(struct mdss_panel_data *pdata, int enable)
+{
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+	struct mdss_panel_info *pinfo = NULL;
+	int rc = 0;
+
+	if (pdata == NULL) {
+		pr_err("%s: Invalid input data\n", __func__);
+		return -EINVAL;
+	}
+
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+			panel_data);
+
+	if (!gpio_is_valid(ctrl_pdata->lcd_power_1v8_en)) {
+		pr_err("%s:%d, lcd 1v8 en line not configured\n",
+				__func__, __LINE__);
+		return rc;
+	}
+
+	pinfo = &(ctrl_pdata->panel_data.panel_info);
+
+	if (enable) {
+		rc = lcd_power_request_gpios(ctrl_pdata);
+		if (rc) {
+			pr_err("lcd power gpio request failed\n");
+			return rc;
+		}
+		gpio_set_value((ctrl_pdata->lcd_power_1v8_en), 1);
+		usleep_range(2 * 1000,2 * 1000);
+	}
+	else{
+		gpio_set_value((ctrl_pdata->lcd_power_1v8_en), 0);
+		usleep_range(5 * 1000,5 * 1000);
+		gpio_free(ctrl_pdata->lcd_power_1v8_en);
+	}
+	return rc;
+
 }
 
 int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
@@ -742,6 +829,10 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 	if (ctrl->ds_registered)
 		mdss_dba_utils_video_on(pinfo->dba_data, pinfo);
+
+	if (mdss_dsi_panel_get_srgb_mode(ctrl))
+		mdss_dsi_panel_set_srgb_mode(ctrl, mdss_dsi_panel_get_srgb_mode(ctrl));
+
 end:
 	pr_debug("%s:-\n", __func__);
 	return ret;
@@ -2517,6 +2608,14 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = mdss_dsi_parse_hdr_settings(np, pinfo);
 	if (rc)
 		return rc;
+
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->srgb_on_cmds,
+		"qcom,mdss-dsi-panel-srgb-on-command",
+		"qcom,mdss-dsi-srgb-command-state");
+
+	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->srgb_off_cmds,
+		"qcom,mdss-dsi-panel-srgb-off-command",
+		"qcom,mdss-dsi-srgb-command-state");
 
 	pinfo->mipi.rx_eot_ignore = of_property_read_bool(np,
 		"qcom,mdss-dsi-rx-eot-ignore");

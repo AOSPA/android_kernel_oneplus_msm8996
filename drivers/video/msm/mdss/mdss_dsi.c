@@ -272,6 +272,7 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev,
 	return rc;
 }
 
+extern int vendor_lcd_power_on(struct mdss_panel_data *pdata, int enable);
 static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
@@ -302,6 +303,8 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 		pr_err("%s: failed to disable vregs for %s\n",
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 
+	vendor_lcd_power_on(pdata, 0);
+
 end:
 	return ret;
 }
@@ -327,6 +330,8 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 		return ret;
 	}
+
+	vendor_lcd_power_on(pdata, 1);
 
 	/*
 	 * If continuous splash screen feature is enabled, then we need to
@@ -1332,6 +1337,15 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 	pinfo = &pdata->panel_info;
 	mipi = &pdata->panel_info.mipi;
+
+	if (!ctrl_pdata->SRGB_first_on) {
+		ctrl_pdata->SRGB_first_on = 1;
+
+		if(ctrl_pdata->SRGB_mode == 1)
+			mdss_dsi_panel_set_srgb_mode(ctrl_pdata,ctrl_pdata->SRGB_mode);
+		else
+			pr_err("%s:srgb mode %d\n",__func__,ctrl_pdata->SRGB_mode);
+	}
 
 	if (mdss_dsi_is_panel_on_interactive(pdata)) {
 		/*
@@ -2631,6 +2645,13 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 				queue_delayed_work(ctrl_pdata->workq,
 					&ctrl_pdata->dba_work, HZ);
 		}
+		break;
+	case MDSS_EVENT_PANEL_SET_SRGB_MODE:
+		ctrl_pdata->SRGB_mode= (int)(unsigned long) arg;
+		mdss_dsi_panel_set_srgb_mode(ctrl_pdata,(int)(unsigned long) ctrl_pdata->SRGB_mode);
+		break;
+	case MDSS_EVENT_PANEL_GET_SRGB_MODE:
+		rc = mdss_dsi_panel_get_srgb_mode(ctrl_pdata);
 		break;
 	default:
 		pr_debug("%s: unhandled event=%d\n", __func__, event);
@@ -3938,6 +3959,12 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio))
 		pr_err("%s:%d, reset gpio not specified\n",
 						__func__, __LINE__);
+
+	ctrl_pdata->lcd_power_1v8_en = of_get_named_gpio(ctrl_pdev->dev.of_node,
+				 "qcom,lcd-vddi-en-gpio", 0);
+		if (!gpio_is_valid(ctrl_pdata->lcd_power_1v8_en))
+			pr_err("%s:%d, lcd_power_1v8_en gpio not specified\n",
+							__func__, __LINE__);
 
 	if (pinfo->mode_gpio_state != MODE_GPIO_NOT_VALID) {
 

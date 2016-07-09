@@ -616,6 +616,7 @@ static ssize_t mdss_fb_force_panel_dead(struct device *dev,
 		pr_err("no panel connected!\n");
 		return len;
 	}
+	mdss_fb_report_panel_dead(mfd);
 
 	if (kstrtouint(buf, 0, &pdata->panel_info.panel_force_dead))
 		pr_err("kstrtouint buf error!\n");
@@ -782,6 +783,46 @@ static ssize_t mdss_fb_get_dfps_mode(struct device *dev,
 	return ret;
 }
 
+static ssize_t mdss_fb_get_srgb_mode(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = fbi->par;
+	int ret = 0;
+	int level = 0;
+
+	level = mdss_fb_send_panel_event(mfd, MDSS_EVENT_PANEL_GET_SRGB_MODE,
+			NULL);
+
+	ret = scnprintf(buf, PAGE_SIZE, "%d\n", level);
+
+	return ret;
+}
+
+static ssize_t mdss_fb_set_srgb_mode(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = fbi->par;
+	int rc = 0;
+	int level = 0;
+
+	rc = kstrtoint(buf, 10, &level);
+	if (rc) {
+		pr_err("kstrtoint failed. rc=%d\n", rc);
+		return rc;
+	}
+    rc = mdss_fb_send_panel_event(mfd, MDSS_EVENT_PANEL_SET_SRGB_MODE,
+	    (void *)(unsigned long)level);
+	if (rc)
+		pr_err("Fail to set sRGB mode: %d\n", level);
+
+	return count;
+}
+
+static DEVICE_ATTR(SRGB, S_IRUGO | S_IWUSR,
+	mdss_fb_get_srgb_mode, mdss_fb_set_srgb_mode);
+
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, mdss_fb_get_type, NULL);
 static DEVICE_ATTR(msm_fb_split, S_IRUGO | S_IWUSR, mdss_fb_show_split,
 					mdss_fb_store_split);
@@ -809,6 +850,7 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_thermal_level.attr,
 	&dev_attr_msm_fb_panel_status.attr,
 	&dev_attr_msm_fb_dfps_mode.attr,
+	&dev_attr_SRGB.attr,
 	NULL,
 };
 
@@ -1815,6 +1857,11 @@ static int mdss_fb_blank_unblank(struct msm_fb_data_type *mfd)
 	}
 
 error:
+	{
+		struct mdss_mdp_ctl *ctl = mfd_to_ctl(mfd);
+		if (!ctl->panel_data->panel_info.cont_splash_enabled)
+		mfd->first_frame = 1;
+	}
 	return ret;
 }
 
@@ -3512,8 +3559,14 @@ static int __mdss_fb_perform_commit(struct msm_fb_data_type *mfd)
 			pr_err("pan display failed %x on fb%d\n", ret,
 					mfd->index);
 	}
-
-skip_commit:
+	
+	skip_commit:
+		
+	if(mfd->first_frame)
+		{
+			mfd->first_frame = 0;
+			mdss_fb_send_panel_event(mfd, MDSS_EVENT_POST_PANEL_ON, NULL);
+		}
 	if (!ret)
 		mdss_fb_update_backlight(mfd);
 

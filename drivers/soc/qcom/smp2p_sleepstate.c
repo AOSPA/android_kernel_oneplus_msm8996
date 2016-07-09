@@ -18,39 +18,10 @@
 
 #define SET_DELAY (2 * HZ)
 #define PROC_AWAKE_ID 12 /* 12th bit */
-static int slst_gpio_base_id;
-
-/**
- * sleepstate_pm_notifier() - PM notifier callback function.
- * @nb:		Pointer to the notifier block.
- * @event:	Suspend state event from PM module.
- * @unused:	Null pointer from PM module.
- *
- * This function is register as callback function to get notifications
- * from the PM module on the system suspend state.
- */
-static int sleepstate_pm_notifier(struct notifier_block *nb,
-				unsigned long event, void *unused)
-{
-	switch (event) {
-	case PM_SUSPEND_PREPARE:
-		gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 0);
-		break;
-
-	case PM_POST_SUSPEND:
-		gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 1);
-		break;
-	}
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block sleepstate_pm_nb = {
-	.notifier_call = sleepstate_pm_notifier,
-};
+int slst_gpio_base_id;
 
 static int smp2p_sleepstate_probe(struct platform_device *pdev)
 {
-	int ret;
 	struct device_node *node = pdev->dev.of_node;
 
 	slst_gpio_base_id = of_get_gpio(node, 0);
@@ -64,10 +35,6 @@ static int smp2p_sleepstate_probe(struct platform_device *pdev)
 
 
 	gpio_set_value(slst_gpio_base_id + PROC_AWAKE_ID, 1);
-
-	ret = register_pm_notifier(&sleepstate_pm_nb);
-	if (ret)
-		SMP2P_ERR("%s: power state notif error %d\n", __func__, ret);
 
 	return 0;
 }

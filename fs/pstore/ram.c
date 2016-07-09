@@ -34,6 +34,8 @@
 #include <linux/slab.h>
 #include <linux/compiler.h>
 #include <linux/pstore_ram.h>
+#include <linux/of_address.h>
+#include <soc/qcom/restart.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
@@ -43,7 +45,7 @@ module_param(record_size, ulong, 0400);
 MODULE_PARM_DESC(record_size,
 		"size of each dump done on oops/panic");
 
-static ulong ramoops_console_size = MIN_MEM_SIZE;
+static ulong ramoops_console_size = 256 * 1024UL;
 module_param_named(console_size, ramoops_console_size, ulong, 0400);
 MODULE_PARM_DESC(console_size, "size of kernel console log");
 
@@ -51,7 +53,7 @@ static ulong ramoops_ftrace_size = MIN_MEM_SIZE;
 module_param_named(ftrace_size, ramoops_ftrace_size, ulong, 0400);
 MODULE_PARM_DESC(ftrace_size, "size of ftrace log");
 
-static ulong ramoops_pmsg_size = MIN_MEM_SIZE;
+static ulong ramoops_pmsg_size = 256 * 1024UL;
 module_param_named(pmsg_size, ramoops_pmsg_size, ulong, 0400);
 MODULE_PARM_DESC(pmsg_size, "size of user space message log");
 
@@ -442,10 +444,46 @@ void notrace ramoops_console_write_buf(const char *buf, size_t size)
 	persistent_ram_write(cxt->cprz, buf, size);
 }
 
+static int __init of_ramoops_platform_data(struct device_node *node,
+					struct ramoops_platform_data *pdata)
+{
+	const u32 *addr;
+	u64 size;
+	struct device_node *pnode;
+
+	memset(pdata, 0, sizeof(*pdata));
+
+	pnode = of_parse_phandle(node, "linux,contiguous-region", 0);
+	if (pnode) {
+		addr = of_get_address(pnode, 0, &size, NULL);
+		if (!addr) {
+			pr_err("failed to parse the ramoops memory address\n");
+			of_node_put(pnode);
+			return -EINVAL;
+		}
+		pdata->mem_address = of_read_ulong(addr, 2);
+		pdata->mem_size = (unsigned long) size;
+		of_node_put(pnode);
+	} else {
+		pr_err("mem reservation for ramoops not present\n");
+		return -EINVAL;
+	}
+
+	pdata->record_size = record_size;
+	pdata->console_size = ramoops_console_size;
+	pdata->ftrace_size = ramoops_ftrace_size;
+	pdata->pmsg_size = ramoops_pmsg_size;
+	pdata->dump_oops = dump_oops;
+
+	return 0;
+}
+
 static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct boot_shared_imem_cookie_type *boot_shared_imem_cookie_ptr;
 	struct ramoops_platform_data *pdata = pdev->dev.platform_data;
+	struct ramoops_platform_data of_pdata;
 	struct ramoops_context *cxt = &oops_cxt;
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
@@ -456,6 +494,14 @@ static int ramoops_probe(struct platform_device *pdev)
 	 */
 	if (cxt->max_dump_cnt)
 		goto fail_out;
+
+	if (pdev->dev.of_node) {
+		if (of_ramoops_platform_data(pdev->dev.of_node, &of_pdata)) {
+			pr_err("Invalid ramoops device tree data\n");
+			goto fail_out;
+		}
+		pdata = &of_pdata;
+	}
 
 	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
 			!pdata->ftrace_size && !pdata->pmsg_size)) {
@@ -504,6 +550,17 @@ static int ramoops_probe(struct platform_device *pdev)
 	err = ramoops_init_prz(dev, cxt, &cxt->mprz, &paddr, cxt->pmsg_size, 0);
 	if (err)
 		goto fail_init_mprz;
+
+	boot_shared_imem_cookie_ptr = ioremap(SHARED_IMEM_BOOT_BASE,
+				sizeof(struct boot_shared_imem_cookie_type));
+	if (!boot_shared_imem_cookie_ptr) {
+		pr_err("unable to map imem DLOAD mode offset for OEM usages\n");
+	} else {
+		__raw_writel(cxt->cprz->paddr,
+			&(boot_shared_imem_cookie_ptr->kernel_log_addr));
+		__raw_writel(cxt->console_size,
+			&(boot_shared_imem_cookie_ptr->kernel_log_size));
+	}
 
 	cxt->pstore.data = cxt;
 	/*
@@ -581,12 +638,19 @@ static int __exit ramoops_remove(struct platform_device *pdev)
 	return -EBUSY;
 }
 
+static const struct of_device_id ramoops_of_match[] = {
+	{ .compatible = "ramoops", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ramoops_of_match);
+
 static struct platform_driver ramoops_driver = {
 	.probe		= ramoops_probe,
 	.remove		= __exit_p(ramoops_remove),
 	.driver		= {
 		.name	= "ramoops",
 		.owner	= THIS_MODULE,
+		.of_match_table = ramoops_of_match,
 	},
 };
 

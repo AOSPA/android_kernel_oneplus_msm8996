@@ -203,6 +203,9 @@ int misc_register(struct miscdevice * misc)
 		}
 	}
 
+		if(misc->minor < DYNAMIC_MINORS)
+			set_bit(DYNAMIC_MINORS -misc->minor -1, misc_minors);
+
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
 	misc->this_device = device_create(misc_class, misc->parent, dev,
