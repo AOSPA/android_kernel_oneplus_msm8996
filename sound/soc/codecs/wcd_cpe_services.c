@@ -410,6 +410,7 @@ static int cpe_worker_thread(void *context)
 		CPE_SVC_GRAB_LOCK(&t_info->msg_lock, "msg_lock");
 		cpe_cmd_received(t_info);
 		reinit_completion(&t_info->cmd_complete);
+
 		/* Was this woken up to stop the thread? */
 		if (t_info->stop_thread)
 			goto unlock_and_exit;

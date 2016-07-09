@@ -4368,6 +4368,7 @@ static bool ch_migrate(struct channel_ctx *l_ctx, struct channel_ctx *r_ctx)
 		(l_ctx->transport_ptr->id == l_ctx->local_xprt_req)) {
 		rwref_put(&l_ctx->ch_state_lhb2);
 		rwref_put(&r_ctx->ch_state_lhb2);
+
 		return migrated;
 	}
 

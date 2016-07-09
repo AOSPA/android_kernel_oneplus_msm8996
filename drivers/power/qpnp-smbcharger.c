@@ -5208,6 +5208,15 @@ static int smbchg_unprepare_for_pulsing(struct smbchg_chip *chip)
 	 */
 	chip->parallel.enabled_once = false;
 
+	/* Enable AICL */
+	pr_smb(PR_MISC, "Enable AICL\n");
+	rc = smbchg_sec_masked_write(chip, chip->usb_chgpth_base + USB_AICL_CFG,
+			AICL_EN_BIT, AICL_EN_BIT);
+	if (rc < 0) {
+		pr_err("Couldn't enable AICL rc=%d\n", rc);
+		goto out;
+	}
+
 	/* fake an insertion */
 	pr_smb(PR_MISC, "Faking Insertion\n");
 	rc = fake_insertion_removal(chip, true);
@@ -5216,15 +5225,6 @@ static int smbchg_unprepare_for_pulsing(struct smbchg_chip *chip)
 		goto out;
 	}
 	chip->hvdcp_3_det_ignore_uv = false;
-
-	/* Enable AICL */
-	pr_smb(PR_MISC, "Enable AICL\n");
-	rc = smbchg_sec_masked_write(chip, chip->usb_chgpth_base + USB_AICL_CFG,
-			AICL_EN_BIT, 0);
-	if (rc < 0) {
-		pr_err("Couldn't enable AICL rc=%d\n", rc);
-		return rc;
-	}
 
 out:
 	/*
@@ -5439,10 +5439,12 @@ static int smbchg_unprepare_for_pulsing_lite(struct smbchg_chip *chip)
 	if (rc < 0)
 		pr_err("Couldn't retract HVDCP ICL vote rc=%d\n", rc);
 
+
 	if (!is_src_detect_high(chip)) {
 		pr_smb(PR_MISC, "HVDCP removed\n");
 		update_usb_status(chip, 0, 0);
 	}
+
 	smbchg_handle_hvdcp3_disable(chip);
 
 	return rc;

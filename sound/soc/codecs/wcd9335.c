@@ -3734,6 +3734,7 @@ static int tasha_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 		set_bit(HPH_PA_DELAY, &tasha->status_mask);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
+
 		if (!(strcmp(w->name, "ANC HPHR PA"))) {
 			if ((snd_soc_read(codec, WCD9335_ANA_HPH) & 0xC0)
 							!= 0xC0)
@@ -3744,6 +3745,7 @@ static int tasha_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 				 */
 				break;
 		}
+
 		/*
 		 * 7ms sleep is required after PA is enabled as per
 		 * HW requirement
@@ -3836,6 +3838,7 @@ static int tasha_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 				 */
 				break;
 		}
+
 		/*
 		 * 7ms sleep is required after PA is enabled as per
 		 * HW requirement
