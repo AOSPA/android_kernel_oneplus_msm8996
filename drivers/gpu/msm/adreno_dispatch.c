@@ -571,6 +571,9 @@ static int sendcmd(struct adreno_device *adreno_dev,
 			del_timer_sync(&dispatcher->fault_timer);
 
 			fault_detect_read(adreno_dev);
+			/* Start the fault timer on first submission */
+			start_fault_timer(adreno_dev);
+
 
 			/* Start the fault timer on first submission */
 			start_fault_timer(adreno_dev);

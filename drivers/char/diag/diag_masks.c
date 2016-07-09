@@ -639,7 +639,8 @@ static int diag_cmd_set_msg_mask(unsigned char *src_buf, int src_len,
 	struct diag_msg_build_mask_t *req = NULL;
 	struct diag_msg_build_mask_t rsp;
 	struct diag_mask_info *mask_info = NULL;
-	struct diag_msg_mask_t *mask_next = NULL;
+        struct diag_msg_mask_t *mask_next = NULL;
+
 	uint32_t *temp = NULL;
 
 	mask_info = (!info) ? &msg_mask : info->msg_mask;
@@ -668,6 +669,7 @@ static int diag_cmd_set_msg_mask(unsigned char *src_buf, int src_len,
 			continue;
 		}
 		mask_next = NULL;
+
 		found = 1;
 		mutex_lock(&mask->lock);
 		mask_size = req->ssid_last - req->ssid_first + 1;

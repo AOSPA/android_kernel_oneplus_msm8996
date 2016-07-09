@@ -273,6 +273,9 @@ Parent node optional properties:
 					default limit would be 150C.
 - qcom,fg-cc-soc-limit-pct:		Percentage of CC_SOC before resetting
 					FG and restore the full CC_SOC value.
+- qcom,fg-skip-first-estimate		A boolean property to specify if the
+					first estimate done by FG should be
+					skipped.
 
 qcom,fg-soc node required properties:
 - reg : offset and length of the PMIC peripheral register map.

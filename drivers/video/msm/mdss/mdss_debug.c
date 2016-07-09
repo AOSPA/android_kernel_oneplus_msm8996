@@ -183,8 +183,7 @@ static ssize_t panel_debug_base_reg_write(struct file *file,
 	if (mdata->debug_inf.debug_enable_clock)
 		mdata->debug_inf.debug_enable_clock(1);
 
-	if (ctrl_pdata->ctrl_state & CTRL_STATE_PANEL_INIT)
-		mdss_dsi_cmdlist_put(ctrl_pdata, &cmdreq);
+	mdss_dsi_cmdlist_put(ctrl_pdata, &cmdreq);
 
 	if (mdata->debug_inf.debug_enable_clock)
 		mdata->debug_inf.debug_enable_clock(0);
@@ -231,19 +230,24 @@ static ssize_t panel_debug_base_reg_read(struct file *file,
 	mdss_dsi_panel_cmd_read(ctrl_pdata, panel_reg[0], panel_reg[1],
 				NULL, rx_buf, dbg->cnt);
 
-	len = scnprintf(panel_reg_buf, reg_buf_len, "0x%02zx: ", dbg->off);
+	len = snprintf(panel_reg_buf, reg_buf_len, "0x%02zx: ", dbg->off);
+	if (len < 0)
+		goto read_reg_fail;
 
 	for (i = 0; (len < reg_buf_len) && (i < ctrl_pdata->rx_len); i++)
 		len += scnprintf(panel_reg_buf + len, reg_buf_len - len,
 				"0x%02x ", rx_buf[i]);
 
-	if (len)
-		panel_reg_buf[len - 1] = '\n';
+	panel_reg_buf[len - 1] = '\n';
 
 	if (mdata->debug_inf.debug_enable_clock)
 		mdata->debug_inf.debug_enable_clock(0);
 
-	if ((count < reg_buf_len) || (copy_to_user(user_buf, panel_reg_buf, len)))
+	if (len < 0 || len >= sizeof(panel_reg_buf))
+		return 0;
+
+	if ((count < sizeof(panel_reg_buf))
+			|| (copy_to_user(user_buf, panel_reg_buf, len)))
 		goto read_reg_fail;
 
 	kfree(rx_buf);
