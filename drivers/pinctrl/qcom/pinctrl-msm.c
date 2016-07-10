@@ -830,10 +830,7 @@ static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
                             need_show_pinctrl_irq = false;
                             printk(KERN_ERR "hwirq %s [irq_num=%d ]triggered\n",irq_to_desc(irq_pin)->action->name,irq_pin);
 							log_wakeup_reason(irq_pin);
-							if(irq_pin == 385) //fpc_fpc1020
-							{
-								sched_set_boost(1);//wujialong 20160314,enable sched_boost when fingerprint wakeup
-							}
+
                         }
                         //--
 		}
