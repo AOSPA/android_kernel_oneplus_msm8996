@@ -94,6 +94,8 @@
 		qcom,mdss-pan-physical-width-dimension = <68>;
 		qcom,mdss-pan-physical-height-dimension = <122>;
 		qcom,mdss-tear-check-frame-rate=<6000>;
+		qcom,suspend-ulps-enabled;
+		qcom,ulps-enabled;
 		//qcom,mdss-tear-check-sync-cfg-height = <1932>; /* Height + VBP + VFP + VSW */
 		//qcom,mdss-tear-check-sync-init-val= <1920>; /* Height */
 	       // qcom,mdss-tear-check-sync-threshold-start = <4>;
