@@ -3147,9 +3147,7 @@ static void msm_hs_pm_suspend(struct device *dev)
 	msm_hs_clk_bus_unvote(msm_uport);
 	if (!atomic_read(&msm_uport->client_req_state))
 		enable_wakeup_interrupt(msm_uport);
-	LOG_USR_MSG(msm_uport->ipc_msm_hs_pwr_ctxt,
-		"%s: PM State Suspended client_count %d\n", __func__,
-								client_count);
+	MSM_HS_DBG("%s(): return suspend\n", __func__);
 	mutex_unlock(&msm_uport->mtx);
 	return;
 err_suspend:
@@ -3175,12 +3173,14 @@ static int msm_hs_pm_resume(struct device *dev)
 		goto exit_pm_resume;
 	if (!atomic_read(&msm_uport->client_req_state))
 		disable_wakeup_interrupt(msm_uport);
+
 	ret = msm_hs_clk_bus_vote(msm_uport);
 	if (ret) {
 		MSM_HS_ERR("%s:Failed clock vote %d\n", __func__, ret);
 		dev_err(dev, "%s:Failed clock vote %d\n", __func__, ret);
 		goto exit_pm_resume;
 	}
+
 	obs_manage_irq(msm_uport, true);
 	msm_uport->pm_state = MSM_HS_PM_ACTIVE;
 	msm_hs_resource_on(msm_uport);
