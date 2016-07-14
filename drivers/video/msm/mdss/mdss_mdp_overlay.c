@@ -1320,13 +1320,18 @@ int mdss_mdp_overlay_start(struct msm_fb_data_type *mfd)
 		mdss_mdp_release_splash_pipe(mfd);
 		return 0;
 	} else if (mfd->panel_info->cont_splash_enabled) {
-		mutex_lock(&mdp5_data->list_lock);
-		rc = list_empty(&mdp5_data->pipes_used);
-		mutex_unlock(&mdp5_data->list_lock);
-		if (rc) {
-			pr_debug("empty kickoff on fb%d during cont splash\n",
+		if (mdp5_data->allow_kickoff) {
+			mdp5_data->allow_kickoff = false;
+		} else {
+			mutex_lock(&mdp5_data->list_lock);
+			rc = list_empty(&mdp5_data->pipes_used);
+			mutex_unlock(&mdp5_data->list_lock);
+			if (rc) {
+				pr_debug("empty kickoff on fb%d during cont splash\n",
 					mfd->index);
-			return 0;
+
+				return -EPERM;
+			}
 		}
 	} else if (mdata->handoff_pending) {
 		pr_warn("fb%d: commit while splash handoff pending\n",
@@ -2731,16 +2736,23 @@ static void cache_initial_timings(struct mdss_panel_data *pdata)
 		 * This value will change dynamically once the
 		 * actual dfps update happen in hw.
 		 */
-		pdata->panel_info.current_fps =
-			mdss_panel_get_framerate(&pdata->panel_info);
-
+		if (pdata->panel_info.type == DTV_PANEL)
+			pdata->panel_info.current_fps =
+				pdata->panel_info.lcdc.frame_rate;
+		else
+			pdata->panel_info.current_fps =
+				mdss_panel_get_framerate(&pdata->panel_info);
 		/*
 		 * Keep the initial fps and porch values for this panel before
 		 * any dfps update happen, this is to prevent losing precision
 		 * in further calculations.
 		 */
-		pdata->panel_info.default_fps =
-			mdss_panel_get_framerate(&pdata->panel_info);
+		if (pdata->panel_info.type == DTV_PANEL)
+			pdata->panel_info.default_fps =
+				pdata->panel_info.lcdc.frame_rate;
+		else
+			pdata->panel_info.default_fps =
+				mdss_panel_get_framerate(&pdata->panel_info);
 
 		if (pdata->panel_info.dfps_update ==
 					DFPS_IMMEDIATE_PORCH_UPDATE_MODE_VFP) {
@@ -2752,7 +2764,9 @@ static void cache_initial_timings(struct mdss_panel_data *pdata)
 		} else if (pdata->panel_info.dfps_update ==
 				DFPS_IMMEDIATE_PORCH_UPDATE_MODE_HFP ||
 			pdata->panel_info.dfps_update ==
-				DFPS_IMMEDIATE_MULTI_UPDATE_MODE_CLK_HFP) {
+				DFPS_IMMEDIATE_MULTI_UPDATE_MODE_CLK_HFP ||
+			pdata->panel_info.dfps_update ==
+				DFPS_IMMEDIATE_MULTI_MODE_HFP_CALC_CLK) {
 			pdata->panel_info.saved_total =
 				mdss_panel_get_htotal(&pdata->panel_info, true);
 			pdata->panel_info.saved_fporch =
@@ -2821,8 +2835,25 @@ static void dfps_update_panel_params(struct mdss_panel_data *pdata,
 		pdata->panel_info.lcdc.h_pulse_width = data->hpw;
 
 		pdata->panel_info.clk_rate = data->clk_rate;
+		if (pdata->panel_info.type == DTV_PANEL)
+			pdata->panel_info.clk_rate *= 1000;
 
 		dfps_update_fps(&pdata->panel_info, new_fps);
+	} else if (pdata->panel_info.dfps_update ==
+		DFPS_IMMEDIATE_MULTI_MODE_HFP_CALC_CLK) {
+
+		pr_debug("hfp=%d, hbp=%d, hpw=%d, clk=%d, fps=%d\n",
+			data->hfp, data->hbp, data->hpw,
+			data->clk_rate, data->fps);
+
+		pdata->panel_info.lcdc.h_front_porch = data->hfp;
+		pdata->panel_info.lcdc.h_back_porch  = data->hbp;
+		pdata->panel_info.lcdc.h_pulse_width = data->hpw;
+
+		pdata->panel_info.clk_rate = data->clk_rate;
+
+		dfps_update_fps(&pdata->panel_info, new_fps);
+		mdss_panel_update_clk_rate(&pdata->panel_info, new_fps);
 	} else {
 		dfps_update_fps(&pdata->panel_info, new_fps);
 		mdss_panel_update_clk_rate(&pdata->panel_info, new_fps);
@@ -2897,7 +2928,9 @@ static ssize_t dynamic_fps_sysfs_wta_dfps(struct device *dev,
 	}
 
 	if (pdata->panel_info.dfps_update ==
-		DFPS_IMMEDIATE_MULTI_UPDATE_MODE_CLK_HFP) {
+		DFPS_IMMEDIATE_MULTI_UPDATE_MODE_CLK_HFP ||
+		pdata->panel_info.dfps_update ==
+		DFPS_IMMEDIATE_MULTI_MODE_HFP_CALC_CLK) {
 		if (sscanf(buf, "%d %d %d %d %d",
 		    &data.hfp, &data.hbp, &data.hpw,
 		    &data.clk_rate, &data.fps) != 5) {
@@ -2912,7 +2945,10 @@ static ssize_t dynamic_fps_sysfs_wta_dfps(struct device *dev,
 		}
 	}
 
-	panel_fps = mdss_panel_get_framerate(&pdata->panel_info);
+	if (pdata->panel_info.type == DTV_PANEL)
+		panel_fps = pdata->panel_info.lcdc.frame_rate;
+	else
+		panel_fps = mdss_panel_get_framerate(&pdata->panel_info);
 
 	if (data.fps == panel_fps) {
 		pr_debug("%s: FPS is already %d\n",
@@ -4812,6 +4848,7 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 {
 	int rc;
 	struct mdss_overlay_private *mdp5_data;
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 	struct mdss_mdp_mixer *mixer;
 	int need_cleanup;
 
@@ -4826,18 +4863,6 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 	if (!mdp5_data || !mdp5_data->ctl) {
 		pr_err("ctl not initialized\n");
 		return -ENODEV;
-	}
-
-	if (!mdss_mdp_ctl_is_power_on(mdp5_data->ctl)) {
-		if (mfd->panel_reconfig) {
-			if (mfd->panel_info->cont_splash_enabled)
-				mdss_mdp_handoff_cleanup_ctl(mfd);
-
-			mdp5_data->borderfill_enable = false;
-			mdss_mdp_ctl_destroy(mdp5_data->ctl);
-			mdp5_data->ctl = NULL;
-		}
-		return 0;
 	}
 
 	/*
@@ -4872,7 +4897,20 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 
 	if (need_cleanup) {
 		pr_debug("cleaning up pipes on fb%d\n", mfd->index);
+		if (mdata->handoff_pending)
+			mdp5_data->allow_kickoff = true;
+
 		mdss_mdp_overlay_kickoff(mfd, NULL);
+	} else if (!mdss_mdp_ctl_is_power_on(mdp5_data->ctl)) {
+		if (mfd->panel_reconfig) {
+			if (mfd->panel_info->cont_splash_enabled)
+				mdss_mdp_handoff_cleanup_ctl(mfd);
+
+			mdp5_data->borderfill_enable = false;
+			mdss_mdp_ctl_destroy(mdp5_data->ctl);
+			mdp5_data->ctl = NULL;
+		}
+		goto end;
 	}
 
 	/*
@@ -4943,6 +4981,7 @@ ctl_stop:
 		mdp5_data->wfd = NULL;
 	}
 
+end:
 	/* Release the last reference to the runtime device */
 	rc = pm_runtime_put(&mfd->pdev->dev);
 	if (rc)
@@ -5358,6 +5397,7 @@ int mdss_mdp_overlay_init(struct msm_fb_data_type *mfd)
 	mdp5_data->hw_refresh = true;
 	mdp5_data->cursor_ndx[CURSOR_PIPE_LEFT] = MSMFB_NEW_REQUEST;
 	mdp5_data->cursor_ndx[CURSOR_PIPE_RIGHT] = MSMFB_NEW_REQUEST;
+	mdp5_data->allow_kickoff = false;
 
 	mfd->mdp.private1 = mdp5_data;
 	mfd->wait_for_kickoff = true;
