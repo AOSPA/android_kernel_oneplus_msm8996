@@ -1281,8 +1281,6 @@ struct super_block {
 
 #define FLAG_ASYNC_FSYNC       0x1
 	unsigned int fsync_flags;
-};
-
 
 	/* AIO completions deferred from interrupt context */
 	struct workqueue_struct *s_dio_done_wq;
