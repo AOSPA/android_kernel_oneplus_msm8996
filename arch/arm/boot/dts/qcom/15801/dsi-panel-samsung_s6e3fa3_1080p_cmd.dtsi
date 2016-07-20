@@ -46,12 +46,12 @@
 		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
 		qcom,mdss-dsi-underflow-color = <0xff>;
 		qcom,mdss-dsi-border-color = <0>;
-		qcom,mdss-dsi-on-command = [29 01 00 00 00 00 02 35 00
+		qcom,mdss-dsi-on-command = [05 01 00 00 0A 00 02 11 00
+					29 01 00 00 00 00 02 35 00
 					29 01 00 00 00 00 02 53 24
 					39 01 00 00 00 00 05 2A 00 00 04 37
 					39 01 00 00 00 00 05 2B 00 00 07 7F
 					29 01 00 00 00 00 03 44 03 80
-					05 01 00 00 0A 00 02 11 00
 					29 01 00 00 00 00 03 F0 5A 5A
 					29 01 00 00 00 00 03 CC 5C 51
 					29 01 00 00 00 00 02 ED 44
