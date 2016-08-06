@@ -179,6 +179,3 @@ obj-$(CONFIG_NFC)		+= nfc/
 obj-y  += oneplus/
 
 obj-y 	+= param_read_write/
-
-obj-y += htc_debug/
-
