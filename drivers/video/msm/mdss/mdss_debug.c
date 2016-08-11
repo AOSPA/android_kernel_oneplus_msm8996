@@ -84,7 +84,7 @@ static ssize_t panel_debug_base_offset_write(struct file *file,
 
 	buf[count] = 0;	/* end of string */
 
-	if (sscanf(buf, "%x %d", &off, &cnt) != 2)
+	if (sscanf(buf, "%x %u", &off, &cnt) != 2)
 		return -EFAULT;
 
 	if (off > dbg->max_offset)
@@ -749,11 +749,11 @@ static ssize_t mdss_debug_factor_write(struct file *file,
 
 	if (strnchr(buf, count, '/')) {
 		/* Parsing buf as fraction */
-		if (sscanf(buf, "%d/%d", &numer, &denom) != 2)
+		if (sscanf(buf, "%u/%u", &numer, &denom) != 2)
 			return -EFAULT;
 	} else {
 		/* Parsing buf as percentage */
-		if (sscanf(buf, "%d", &numer) != 1)
+		if (kstrtouint(buf, 0, &numer))
 			return -EFAULT;
 		denom = 100;
 	}
@@ -1061,7 +1061,7 @@ static ssize_t mdss_debug_perf_bw_limit_write(struct file *file,
 
 	if (strnchr(buf, count, ' ')) {
 		/* Parsing buf */
-		if (sscanf(buf, "%d %d", &mode, &val) != 2)
+		if (sscanf(buf, "%u %u", &mode, &val) != 2)
 			return -EFAULT;
 	}
 
@@ -1191,6 +1191,9 @@ int mdss_debugfs_init(struct mdss_data_type *mdata)
 	mdss_debugfs_perf_init(mdd, mdata);
 
 	if (mdss_create_xlog_debug(mdd))
+		goto err;
+
+	if (mdss_create_frc_debug(mdd))
 		goto err;
 
 	mdata->debug_inf.debug_data = mdd;
