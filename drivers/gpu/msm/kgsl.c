@@ -41,7 +41,6 @@
 #include "kgsl_trace.h"
 #include "kgsl_sync.h"
 #include "kgsl_compat.h"
-#include "kgsl_pool.h"
 
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "kgsl."
@@ -3979,9 +3978,6 @@ int kgsl_device_platform_probe(struct kgsl_device *device)
 	/* Initialize common sysfs entries */
 	kgsl_pwrctrl_init_sysfs(device);
 
-	/* Initialize the memory pools */
-	kgsl_init_page_pools();
-
 	dev_info(device->dev, "Initialized %s: mmu=%s\n", device->name,
 		kgsl_mmu_enabled() ? "on" : "off");
 
@@ -4002,8 +3998,6 @@ void kgsl_device_platform_remove(struct kgsl_device *device)
 	destroy_workqueue(device->events_wq);
 
 	kgsl_device_snapshot_close(device);
-
-	kgsl_exit_page_pools();
 
 	kgsl_pwrctrl_uninit_sysfs(device);
 
