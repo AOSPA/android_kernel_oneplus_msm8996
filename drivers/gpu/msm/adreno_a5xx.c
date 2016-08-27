@@ -1297,7 +1297,6 @@ static const struct {
 };
 
 void a5xx_hwcg_set(struct adreno_device *adreno_dev, bool on)
-
 {
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	const struct kgsl_hwcg_reg *regs;
@@ -1319,7 +1318,6 @@ void a5xx_hwcg_set(struct adreno_device *adreno_dev, bool on)
 	/* enable top level HWCG */
 	kgsl_regwrite(device, A5XX_RBBM_CLOCK_CNTL, on ? 0xAAA8AA00 : 0);
 	kgsl_regwrite(device, A5XX_RBBM_ISDB_CNT, on ? 0x00000182 : 0x00000180);
-
 }
 
 static int _read_fw2_block_header(uint32_t *header, uint32_t id,
