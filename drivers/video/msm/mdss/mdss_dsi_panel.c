@@ -220,32 +220,22 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
-int mdss_dsi_panel_set_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl, int level)
+int mdss_dsi_panel_update_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl)
 {
-	struct dsi_panel_cmds *srgb_on_cmds,*srgb_off_cmds;
-
-	srgb_on_cmds = &ctrl->srgb_on_cmds;
-	srgb_off_cmds = &ctrl->srgb_off_cmds;
-
-	if(!srgb_on_cmds->cmd_cnt){
-		printk("this panel don't support srgb mode\n");
+	if (!ctrl->srgb_on_cmds.cmd_cnt) {
+		printk("%s: this panel doesn't support sRGB!\n", __func__);
 		return -1;
 	}
 
-	if (level){
-			mdss_dsi_panel_cmds_send(ctrl, srgb_on_cmds, CMD_REQ_COMMIT);
-		pr_err("sRGB Mode On.\n");
-	}
-	else{
-			mdss_dsi_panel_cmds_send(ctrl, srgb_off_cmds, CMD_REQ_COMMIT);
-		pr_err("sRGB Mode off.\n");
+	if (ctrl->srgb_enabled) {
+		mdss_dsi_panel_cmds_send(ctrl, &ctrl->srgb_on_cmds, CMD_REQ_COMMIT);
+		pr_err("%s: sRGB mode enabled\n", __func__);
+	} else {
+		mdss_dsi_panel_cmds_send(ctrl, &ctrl->srgb_off_cmds, CMD_REQ_COMMIT);
+		pr_err("%s: sRGB mode disabled\n", __func__);
 	}
 
 	return 0;
-}
-int mdss_dsi_panel_get_srgb_mode(struct mdss_dsi_ctrl_pdata *ctrl)
-{
-	return ctrl->SRGB_mode;
 }
 
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
@@ -830,8 +820,8 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	if (ctrl->ds_registered)
 		mdss_dba_utils_video_on(pinfo->dba_data, pinfo);
 
-	if (mdss_dsi_panel_get_srgb_mode(ctrl))
-		mdss_dsi_panel_set_srgb_mode(ctrl, mdss_dsi_panel_get_srgb_mode(ctrl));
+	if (ctrl->srgb_enabled)
+		mdss_dsi_panel_update_srgb_mode(ctrl);
 
 end:
 	pr_debug("%s:-\n", __func__);

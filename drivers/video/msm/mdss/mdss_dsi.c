@@ -1338,14 +1338,11 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	pinfo = &pdata->panel_info;
 	mipi = &pdata->panel_info.mipi;
 
-	if (!ctrl_pdata->SRGB_first_on) {
-		ctrl_pdata->SRGB_first_on = 1;
-
-		if(ctrl_pdata->SRGB_mode == 1)
-			mdss_dsi_panel_set_srgb_mode(ctrl_pdata,ctrl_pdata->SRGB_mode);
-		else
-			pr_err("%s:srgb mode %d\n",__func__,ctrl_pdata->SRGB_mode);
-	}
+	// Update sRGB mode
+	if (ctrl_pdata->srgb_enabled)
+		mdss_dsi_panel_update_srgb_mode(ctrl_pdata);
+	else
+		pr_info("%s: sRGB is disabled\n", __func__);
 
 	if (mdss_dsi_is_panel_on_interactive(pdata)) {
 		/*
@@ -2647,11 +2644,11 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		}
 		break;
 	case MDSS_EVENT_PANEL_SET_SRGB_MODE:
-		ctrl_pdata->SRGB_mode= (int)(unsigned long) arg;
-		mdss_dsi_panel_set_srgb_mode(ctrl_pdata,(int)(unsigned long) ctrl_pdata->SRGB_mode);
+		ctrl_pdata->srgb_enabled = arg;
+		mdss_dsi_panel_update_srgb_mode(ctrl_pdata);
 		break;
 	case MDSS_EVENT_PANEL_GET_SRGB_MODE:
-		rc = mdss_dsi_panel_get_srgb_mode(ctrl_pdata);
+		rc = ctrl_pdata->srgb_enabled;
 		break;
 	default:
 		pr_debug("%s: unhandled event=%d\n", __func__, event);
