@@ -1469,10 +1469,10 @@ static enum hrtimer_restart synaptics_ts_timer_func(struct hrtimer *timer)
 static irqreturn_t synaptics_irq_thread_fn(int irq, void *dev_id)
 {
 	struct synaptics_ts_data *ts = (struct synaptics_ts_data *)dev_id;
-	mutex_lock(&ts->mutex);
-    touch_disable(ts);
+
+	touch_disable(ts);
 	queue_work(synaptics_report, &ts->report_work);
-	mutex_unlock(&ts->mutex);
+
 	return IRQ_HANDLED;
 }
 #endif
