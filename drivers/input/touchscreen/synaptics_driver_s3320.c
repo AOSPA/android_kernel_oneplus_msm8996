@@ -1249,7 +1249,7 @@ static unsigned char pres_value = 1;
 #ifdef SUPPORT_VIRTUAL_KEY //WayneChang, 2015/12/02, add for key to abs, simulate key in abs through virtual key system
 extern struct completion key_cm;
 #endif
-void int_touch(void)
+static inline void __int_touch(void)
 {
 	int ret = -1,i = 0;
 	uint8_t buf[90];
@@ -1398,6 +1398,11 @@ void int_touch(void)
 	mutex_unlock(&ts->mutexreport);
 }
 
+void int_touch(void)
+{
+	__int_touch();
+}
+
 #ifndef TPD_USE_EINT
 static enum hrtimer_restart synaptics_ts_timer_func(struct hrtimer *timer)
 {
@@ -1455,7 +1460,7 @@ static irqreturn_t synaptics_irq_thread_fn(int irq, void *dev_id)
 	}
 */
 	if (inte & 0x04)
-		int_touch();
+		__int_touch();
 
 end:
 	//ret = set_changer_bit(ts);
