@@ -13,6 +13,7 @@
  ** 	<author>	<data>			<desc>
  **  chenggang.li@BSP.TP modified for oem 2014-07-30 14005 tp_driver
  ************************************************************************************/
+#include "synaptics_driver_s1302.h"
 #include <linux/of_gpio.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
@@ -259,6 +260,7 @@ struct synaptics_ts_data {
 	struct i2c_client *client;
 	struct mutex mutex;
 	int irq;
+	atomic_t irq_enable;
 	int irq_gpio;
 	int reset_gpio;
 	int en3v_gpio;
@@ -281,6 +283,7 @@ struct synaptics_ts_data {
 #if defined(CONFIG_FB)
 	struct notifier_block fb_notif;
 #endif
+	spinlock_t lock;
 
 	/******power*******/
 	struct regulator *vdd_2v8;
@@ -756,7 +759,7 @@ static void int_key_cover(struct synaptics_ts_data *ts )
         ts->key_back = false;
         ts->key_app_select = false;
         ret = hrtimer_cancel(&ts->timer);
-        TPD_DEBUG("timer cancel ret[%s]\n",ret?"active":"no active");  
+        TPD_DEBUG("timer cancel ret[%s]\n",ret?"active":"no active");
     }
     if (button_key == 0x00){
         is_in_cover = false;
@@ -1836,7 +1839,7 @@ static int synaptics_parse_dts(struct device *dev, struct synaptics_ts_data *ts)
 	}
 
 	/***********power regulator_get****************/
-	
+
 	ts->vdd_2v8 = regulator_get(&ts->client->dev, "vdd_2v8");
 	if( IS_ERR(ts->vdd_2v8) ){
 		rc = PTR_ERR(ts->vdd_2v8);
@@ -1894,7 +1897,7 @@ static int synaptics_dsx_pinctrl_init(struct synaptics_ts_data *ts)
         printk("%s %d error!\n",__func__,__LINE__);
 		goto err_pinctrl_lookup;
 	}
-    
+
 	ts->pinctrl_state_suspend
 		= pinctrl_lookup_state(ts->pinctrl, "pmx_tk_suspend");
 	if (IS_ERR_OR_NULL(ts->pinctrl_state_suspend)) {
@@ -1990,6 +1993,7 @@ static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device
 		TPD_ERR("regulator_enable is called\n");
 
 	mutex_init(&ts->mutex);
+	atomic_set(&ts->irq_enable,0);
 	ts->is_suspended = 0;
 
 	if( !i2c_check_functionality(client->adapter, I2C_FUNC_I2C) ){
@@ -2215,6 +2219,42 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 	return 0;
 }
 #endif
+
+
+static void touch_enable(struct synaptics_ts_data *ts)
+{
+	if(0 == atomic_read(&ts->irq_enable))
+	{
+		if(ts->irq)
+			enable_irq(ts->irq);
+		atomic_set(&ts->irq_enable,1);
+	}
+}
+
+static void touch_disable(struct synaptics_ts_data *ts)
+{
+	if(1 == atomic_read(&ts->irq_enable))
+	{
+		if(ts->irq)
+			disable_irq_nosync(ts->irq);
+		atomic_set(&ts->irq_enable,0);
+	}
+}
+
+void synaptics_s1302_enable_global(bool enabled)
+{
+	if (tc_g == NULL)
+		return;
+
+	spin_lock(&tc_g->lock);
+
+	if (enabled)
+		touch_enable(tc_g);
+	else
+		touch_disable(tc_g);
+
+	spin_unlock(&tc_g->lock);
+}
 
 static int __init tc_driver_init(void)
 {
