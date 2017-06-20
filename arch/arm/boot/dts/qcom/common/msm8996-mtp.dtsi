@@ -2055,6 +2055,9 @@
 	};
 	qcom,pmi8994@3 {
 		/delete-node/ qcom,leds@d800;
+		qcom,leds@d000 {
+			qcom,rgb-sync;
+		};
 	};
 };
 &pmi8994_charger {
