@@ -115,6 +115,19 @@
 
 #define QUSB2PHY_REFCLK_ENABLE		BIT(0)
 
+enum oem_boot_mode{
+        MSM_BOOT_MODE__NORMAL,
+        MSM_BOOT_MODE__FASTBOOT,
+        MSM_BOOT_MODE__RECOVERY,
+        MSM_BOOT_MODE__FACTORY,
+        MSM_BOOT_MODE__RF,
+        MSM_BOOT_MODE__WLAN,
+        MSM_BOOT_MODE__MOS,
+        MSM_BOOT_MODE__CHARGE,
+};
+
+#define get_boot_mode() MSM_BOOT_MODE__NORMAL
+
 unsigned int tune2;
 module_param(tune2, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(tune2, "QUSB PHY TUNE2");
@@ -1330,8 +1343,10 @@ static int qusb_phy_probe(struct platform_device *pdev)
 			dev_dbg(dev, "error allocating memory for emu_dcm_reset_seq\n");
 		}
 	}
-
-	of_get_property(dev->of_node, "qcom,qusb-phy-init-seq", &size);
+	if(get_boot_mode() == MSM_BOOT_MODE__NORMAL)
+		of_get_property(dev->of_node, "qcom,qusb-phy-init-seq", &size);
+	else
+		of_get_property(dev->of_node, "qcom,qusb-phy-init-seq-rf", &size);
 	if (size) {
 		qphy->qusb_phy_init_seq = devm_kzalloc(dev,
 						size, GFP_KERNEL);
@@ -1342,11 +1357,16 @@ static int qusb_phy_probe(struct platform_device *pdev)
 				dev_err(dev, "invalid init_seq_len\n");
 				return -EINVAL;
 			}
-
-			of_property_read_u32_array(dev->of_node,
-				"qcom,qusb-phy-init-seq",
-				qphy->qusb_phy_init_seq,
-				qphy->init_seq_len);
+			if(get_boot_mode() == MSM_BOOT_MODE__NORMAL)
+				of_property_read_u32_array(dev->of_node,
+					"qcom,qusb-phy-init-seq",
+					qphy->qusb_phy_init_seq,
+					qphy->init_seq_len);
+			else
+				of_property_read_u32_array(dev->of_node,
+					"qcom,qusb-phy-init-seq-rf",
+					qphy->qusb_phy_init_seq,
+					qphy->init_seq_len);
 		} else {
 			dev_err(dev, "error allocating memory for phy_init_seq\n");
 		}

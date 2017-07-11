@@ -13,6 +13,7 @@
  ** 	<author>	<data>			<desc>
  **  chenggang.li@BSP.TP modified for oem 2014-07-30 14005 tp_driver
  ************************************************************************************/
+#include "synaptics_driver_s3320.h"
 #include <linux/of_gpio.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
@@ -4233,6 +4234,17 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 	return NOTIFY_OK;
 }
 #endif
+
+void synaptics_s3320_enable_global(bool enabled)
+{
+	if (ts_g == NULL)
+		return;
+
+	if (enabled)
+		touch_enable(ts_g);
+	else
+		touch_disable(ts_g);
+}
 
 static int __init tpd_driver_init(void)
 {
