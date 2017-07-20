@@ -150,20 +150,15 @@ struct test_header {
 #endif
 
 /*********************for Debug LOG switch*******************/
+// #define DEBUG
 #define TPD_ERR(a, arg...)  pr_err(TPD_DEVICE ": " a, ##arg)
 #define TPDTM_DMESG(a, arg...)  printk(TPD_DEVICE ": " a, ##arg)
-
-#define TPD_DEBUG(a,arg...)\
-	do{\
-		if(tp_debug)\
-		pr_err(TPD_DEVICE ": " a,##arg);\
-	}while(0)
+#define TPD_DEBUG(a,arg...)  pr_debug(TPD_DEVICE ": " a,##arg)
 
 /*---------------------------------------------Global Variable----------------------------------------------*/
 static int baseline_ret = 0;
 static int TP_FW;
 static int tp_dev = 6;
-static unsigned int tp_debug = 1;
 static int button_map[3];
 static int tx_rx_num[2];
 static int16_t Rxdata[30][30];
@@ -1740,16 +1735,6 @@ static ssize_t tp_show(struct device_driver *ddri, char *buf)
 			F01_RMI_DATA_BASE,a,F01_RMI_DATA01,b,F12_2D_DATA_BASE,c);
 }
 
-static ssize_t store_tp(struct device_driver *ddri, const char *buf, size_t count)
-{
-	int tmp = 0;
-	if( 1 == sscanf(buf, "%d", &tmp) ){
-		tp_debug = tmp;
-	} else {
-		TPDTM_DMESG("invalid content: '%s', length = %zd\n", buf, count);
-	}
-	return count;
-}
 static ssize_t vendor_id_read_func(struct file *file, char __user *user_buf, size_t count, loff_t *ppos)
 {
 	int ret = 0;
@@ -2580,7 +2565,7 @@ static DEVICE_ATTR(test_limit, 0664, synaptics_test_limit_show, synaptics_test_l
 static DRIVER_ATTR(tp_baseline_image, 0664, tp_baseline_show, tp_delta_store);
 static DRIVER_ATTR(tp_baseline_image_with_cbc, 0664, tp_baseline_show_with_cbc, tp_test_store);
 static DRIVER_ATTR(tp_delta_image, 0664, tp_rawdata_show, NULL);
-static DRIVER_ATTR(tp_debug_log, 0664, tp_show, store_tp);
+static DRIVER_ATTR(tp_debug_log, 0664, tp_show, NULL);
 static DEVICE_ATTR(tp_fw_update, 0664, synaptics_update_fw_show, synaptics_update_fw_store);
 static int synaptics_dsx_pinctrl_init(struct synaptics_ts_data *ts);
 

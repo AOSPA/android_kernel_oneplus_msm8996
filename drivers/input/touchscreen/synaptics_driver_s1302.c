@@ -83,20 +83,14 @@ enum oem_boot_mode{
 #define CONFIG_SYNAPTIC_RED
 
 /*********************for Debug LOG switch*******************/
+// #define DEBUG
 #define TPD_ERR(a, arg...)  pr_err(LOG_TAG ": " a, ##arg)
 #define TPDTM_DMESG(a, arg...)  printk(LOG_TAG ": " a, ##arg)
-
-#define TPD_DEBUG(a,arg...)\
-	do{\
-		if(tp_debug)\
-		pr_err(LOG_TAG ": " a,##arg);\
-	}while(0)
-
+#define TPD_DEBUG(a,arg...)  pr_debug(LOG_TAG ": " a,##arg)
 
 //#define SUPPORT_FOR_COVER_ESD
 #define SUPPORT_VIRTUAL_KEY
 /*---------------------------------------------Global Variable----------------------------------------------*/
-static unsigned int tp_debug = 0;
 static int force_update = 0;
 static int key_reverse = 0;
 static struct synaptics_ts_data *tc_g = NULL;
@@ -1167,35 +1161,6 @@ const struct file_operations proc_reset =
     .llseek     = seq_lseek,
     .release    = single_release,
 };
-static ssize_t synaptics_s1302_debug_write (struct file *file, const char *buffer, size_t count, loff_t *ppos)
-{
-    int ret,write_flag;
-
-    ret = sscanf(buffer,"%x",&write_flag);
-    TPD_ERR("%s write %d\n",__func__,write_flag);
-    tp_debug = write_flag?1:0;
-	return count;
-}
-static int synaptics_s1302_debug_show(struct seq_file *seq, void *offset)
-{
-    seq_printf(seq, "s1302 debug log is %s!\n",tp_debug?"on":"off");
-    return 0 ;
-}
-
-static int synaptics_s1302_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, synaptics_s1302_debug_show, inode->i_private);
-}
-
-const struct file_operations proc_debug =
-{
-    .owner      = THIS_MODULE,
-    .open       = synaptics_s1302_debug_open,
-    .read       = seq_read,
-    .write      = synaptics_s1302_debug_write,
-    .llseek     = seq_lseek,
-    .release    = single_release,
-};
 
 static ssize_t synaptics_s1302_wait_time_write (struct file *file, const char *buffer, size_t count, loff_t *ppos)
 {
@@ -1502,7 +1467,6 @@ static int synaptics_s1302_proc(void)
     proc_entry = proc_create_data("key_rep", 0666, procdir,&proc_reverse_key,NULL);
     proc_entry = proc_create_data("radd", 0666, procdir,&proc_radd,NULL);
     proc_entry = proc_create_data("reset", 0666, procdir,&proc_reset,NULL);
-    proc_entry = proc_create_data("debug", 0666, procdir,&proc_debug,NULL);
     proc_entry = proc_create_data("strength", 0444, procdir,&proc_key_strength,NULL);
     proc_entry = proc_create_data("virtual_key", 0666, procdir,&proc_virtual_key,NULL);
     proc_entry = proc_create_data("touchkey_baseline_test", 0644, procdir, &tp_baseline_image_proc_fops,NULL);
