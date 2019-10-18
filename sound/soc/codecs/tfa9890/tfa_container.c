@@ -284,11 +284,11 @@ int tfaContWriteRegsProf(struct tfa98xx *tfa98xx, int profile)
 		     prof->list[i].type ==dscProfile )
 			break;
 
-		if (prof->list[i].type & dscBitfieldBase) {
+		if ( prof->list[i].type & dscBitfieldBase ) {
 			err = tfaRunWriteBitfield(tfa98xx, tfaContDsc2Bf(prof->list[i]));
 		}
 
-		if (!prof->list[i].type == dscRegister) {
+		if ( prof->list[i].type == dscRegister ) {
 			err = tfaRunWriteRegister(tfa98xx, (struct nxpTfaRegpatch *)(base + prof->list[i].offset));
 		}
 
