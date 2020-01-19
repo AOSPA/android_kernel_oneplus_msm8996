@@ -67,7 +67,9 @@ DEVICE(vivopay, VIVOPAY_IDS);
 	{ USB_DEVICE(0x0c44, 0x0022) },	/* unknown Mororola phone */	\
 	{ USB_DEVICE(0x22b8, 0x2a64) },	/* Motorola KRZR K1m */		\
 	{ USB_DEVICE(0x22b8, 0x2c84) },	/* Motorola VE240 phone */	\
-	{ USB_DEVICE(0x22b8, 0x2c64) }	/* Motorola V950 phone */
+	{ USB_DEVICE(0x22b8, 0x2c64) },	/* Motorola V950 phone */ \
+	{ USB_DEVICE(0x0cad, 0x9012) },	/* MTP6550 */ \
+	{ USB_DEVICE(0x0cad, 0x9016) }	/* TPG2200 */
 DEVICE(moto_modem, MOTO_IDS);
 
 /* Novatel Wireless GPS driver */
