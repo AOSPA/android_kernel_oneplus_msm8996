@@ -16916,7 +16916,8 @@ eHalStatus csrRoamOpenSession(tpAniSirGlobal pMac,
             break;
         }
     }
-    if( pMac->sme.max_intf_count == i )
+    if ((pMac->sme.max_intf_count == i) ||
+        (*pbSessionId == CSR_SESSION_ID_INVALID))
     {
         //No session is available
         smsLog(pMac, LOGE,
@@ -18056,7 +18057,7 @@ eHalStatus csrGetStatistics(tpAniSirGlobal pMac, eCsrStatsRequesterType requeste
                             tANI_U8 staId, void *pContext,
                             tANI_U8 sessionId)
 {
-   tCsrStatsClientReqInfo staEntry;
+   tCsrStatsClientReqInfo staEntry = {0};
    tCsrStatsClientReqInfo *pStaEntry = NULL;
    tCsrPeStatsReqInfo *pPeStaEntry = NULL;
    tListElem *pEntry = NULL;

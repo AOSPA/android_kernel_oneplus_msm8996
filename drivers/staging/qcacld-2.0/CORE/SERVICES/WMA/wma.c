@@ -3278,6 +3278,7 @@ static int wma_stats_event_handler(void *handle, u_int8_t *cmd_param_info,
 	buf_data_size = buf_size - sizeof(*event);
 
 	rssi_event = param_buf->chain_stats;
+	buf_size += sizeof(*rssi_event);
 	if (rssi_event) {
 		if (rssi_event->num_per_chain_rssi_stats >
 		    param_buf->num_rssi_stats) {
@@ -3290,9 +3291,8 @@ static int wma_stats_event_handler(void *handle, u_int8_t *cmd_param_info,
 			 ((rssi_event->tlv_header & 0x0000FFFF) ==
 				WMITLV_GET_STRUCT_TLVLEN(
 					wmi_per_chain_rssi_stats))) {
-			buf_size += sizeof(*rssi_event) +
-				(rssi_event->num_per_chain_rssi_stats *
-				sizeof(wmi_rssi_stats));
+			buf_size += rssi_event->num_per_chain_rssi_stats *
+				sizeof(wmi_rssi_stats);
 			rssi_stats_support = TRUE;
 		}
 	}
@@ -37231,9 +37231,8 @@ static VOS_STATUS wma_send_dc_to_fw(ol_txrx_pdev_handle pdev, tp_wma_handle wma,
 	therm_data->level_conf[0].priority = 0;
 
 	vos_status =  wma_send_thermal_mitigation_param_cmd_tlv(wma, therm_data);
-	if (VOS_STATUS_SUCCESS ==  vos_status) {
-		vos_mem_free(therm_data);
-	}
+	vos_mem_free(therm_data);
+
 	return vos_status;
 }
 
