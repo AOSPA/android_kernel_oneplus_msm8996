@@ -926,6 +926,46 @@ static ssize_t mdss_fb_set_srgb_mode(struct device *dev,
 static DEVICE_ATTR(SRGB, S_IRUGO | S_IWUSR,
 	mdss_fb_get_srgb_mode, mdss_fb_set_srgb_mode);
 
+static ssize_t mdss_fb_get_P3_mode(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = fbi->par;
+	int ret = 0;
+	int level = 0;
+
+	level = mdss_fb_send_panel_event(mfd, MDSS_EVENT_PANEL_GET_P3_MODE,
+			NULL);
+
+	ret = scnprintf(buf, PAGE_SIZE, "%d\n", level);
+
+	return ret;
+}
+
+static ssize_t mdss_fb_set_P3_mode(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = fbi->par;
+	int rc = 0;
+	int level = 0;
+
+	rc = kstrtoint(buf, 10, &level);
+	if (rc) {
+		pr_err("kstrtoint failed. rc=%d\n", rc);
+		return rc;
+	}
+    rc = mdss_fb_send_panel_event(mfd, MDSS_EVENT_PANEL_SET_P3_MODE,
+	    (void *)(unsigned long)level);
+	if (rc)
+		pr_err("Fail to set DCI-P3 mode: %d\n", level);
+
+	return count;
+}
+
+static DEVICE_ATTR(P3, S_IRUGO | S_IWUSR,
+	mdss_fb_get_P3_mode, mdss_fb_set_P3_mode);
+
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, mdss_fb_get_type, NULL);
 static DEVICE_ATTR(msm_fb_split, S_IRUGO | S_IWUSR, mdss_fb_show_split,
 					mdss_fb_store_split);
@@ -960,6 +1000,7 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_measured_fps.attr,
 	&dev_attr_msm_fb_persist_mode.attr,
 	&dev_attr_SRGB.attr,
+	&dev_attr_P3.attr,
 	NULL,
 };
 
